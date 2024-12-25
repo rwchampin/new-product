@@ -1,33 +1,23 @@
 <!DOCTYPE html>
-<!-- saved from url=(0032)http://127.0.0.1:5500/index.html -->
-<html lang="en" data-tag-assistant-present=""><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-		<title>10</title>
-		
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		<style>
-			body {
-				font-family: Monospace;
-				background-color: #000;
-				margin: 0px;
-				overflow: hidden;
-			}
-			a {
-				color: #f80;
-			}
-		</style>
-	<!-- Code injected by Five-server -->
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Millie Burst</title>
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            font-family: Monospace;
+            background-color: #000;
+            margin: 0px;
+            overflow: hidden;
+        }
+        a {
+            color: #f80;
+        }
+    </style>
   <script async="" data-id="five-server" data-file="/Users/ryanchampin/Development/patreon-products/instanced-3d-particle-cloud_files 4/index.html" type="application/javascript" src="./10_files/fiveserver.js"></script>
   <style>      
       /* Injected by five-server */
-      /*[data-highlight="true"] {
-        border: 1px rgb(90,170,255) solid !important;
-        background-color: rgba(155,215,255,0.5);
-        animation: fadeOutHighlight 1s forwards 0.5s;
-      }
-      img[data-highlight="true"] {
-        filter: sepia(100%) hue-rotate(180deg) saturate(200%);
-        animation: fadeOutHighlightIMG 0.5s forwards 0.5s;
-      }*/
       @keyframes fadeOutHighlight {
         from {background-color: rgba(155,215,255,0.5);}
         to {background-color: rgba(155,215,255,0);}
@@ -94,13 +84,9 @@
 		attribute float id;
 
 		varying vec2 vUv;
-		//varying vec2 vPuv;
 		varying vec3 vColor;
 		varying vec3 vNormal;
 		varying float vDestroy;
-
-		//varying vec3 vViewPosition;
-
 
 		vec3 rotateVectorByQuaternion( vec3 v, vec4 q ) {
 
@@ -109,20 +95,12 @@
 			float x = v.x, y  = v.y, z  = v.z;
 			float qx = q.x, qy = q.y, qz = q.z, qw = q.w;
 
-			// calculate quaternion * vector
+			vec3 S = normalize( q.xyz );
+			vec3 T = normalize( cross( S, v ) );
+			vec3 N = normalize( cross( T, S ) );
 
-			float ix =  qw * x + qy * z - qz * y,
-				  iy =  qw * y + qz * x - qx * z,
-				  iz =  qw * z + qx * y - qy * x,
-				  iw = -qx * x - qy * y - qz * z;
-
-			// calculate result * inverse quaternion
-
-			dest.x = ix * qw + iw * -qx + iy * -qz - iz * -qy;
-			dest.y = iy * qw + iw * -qy + iz * -qx - ix * -qz;
-			dest.z = iz * qw + iw * -qz + ix * -qy - iy * -qx;
-
-			return dest;
+			mat3 tsn = mat3( S, T, N );
+			return tsn * v;
 
 		}
 
@@ -147,43 +125,19 @@
 
 			vNormal = normal;
 			vec3 vPosition = position;
-			vColor = color;//vec3(0.5,0.5,0.5);
-			//vColor *= min( (size.x+size.z)*0.02, 0.8);
-			//vColor.y *= min( size.x*0.1, 0.9);
-			//vColor.z *= min( size.x*0.1, 0.9);
-
-			/*vec4 vOrientation = orientation;
-
-			vOrientation.w += globalTime*10.0;
-
-			vOrientation = normalize(vOrientation);
-
-			//vColor.y *= 0.1;
-			vec3 vcV = cross(vOrientation.xyz, vPosition);
-			vPosition = vcV * (2.0 * vOrientation.w) + (cross(vOrientation.xyz, vcV) * 2.0 + vPosition);
-
-			vec3 vcN = cross(vOrientation.xyz, vNormal);
-			vNormal = vcN * (2.0 * vOrientation.w) + (cross(vOrientation.xyz, vcN) * 2.0 + vNormal);
-			*/
-
+			vColor = color;
 			vec2 myUv = normalize( offset ).xy * 0.5 + 0.5;
-			//myUv.x += globalTime*0.05;
-			//myUv.y += globalTime*0.1;
-
 			myUv.x += sin(offset.x*0.005);
 			myUv.y += cos(offset.z*0.0075);
 
 			vec3 h = texture2D( height, myUv*vec2(1.0, 2.0) ).rgb;
 
-			// time
 			float localTime = id + globalTime*2.0;
 			float modTime = mod( localTime, 1.0 );
 			float accTime = modTime * modTime;
 
-
 			float extra = 0.0;
 
-			// effector
 			float dif = abs(modTime-effector);
 			float effect = 0.0;
 
@@ -197,102 +151,20 @@
 
 			vec3 off = offset * (1.0+( (pow(h.r, 2.0)*(15.0+extra)) *explode ));
 
-				off.x += (cos(10.0+off.z*0.1+h.r)*0.6)*15.0; 
-				off.y += (sin(20.0+off.x*0.1+h.r)*0.4)*10.0; 
-				off.z += (cos(10.0+off.y*0.1+h.r)*0.5)*15.0;
+			off.x += (cos(10.0+off.z*0.1+h.r)*0.6)*15.0; 
+			off.y += (sin(20.0+off.x*0.1+h.r)*0.4)*10.0; 
+			off.z += (cos(10.0+off.y*0.1+h.r)*0.5)*15.0;
 
-/*
-			off.x += modTime*1000.0;
-
-			off.y *= 1.0+sin(globalTime*0.6+off.x*0.025)*0.4;
-			off.z *= 1.0+cos(globalTime*0.6+off.x*0.025)*0.4;
-
-			off.y *= 1.0+effect*0.3;
-			off.z *= 1.0+effect*0.3;
-
-			off.y += sin(accTime*0.6+off.x*0.015) * cos(globalTime*2.0)*50.0; 
-			off.z += cos(accTime*0.4+off.x*0.015) * sin(globalTime*1.0)*50.0; 
-
-*/
-			//vec4 rotation = vec4( orientation.xyz, globalTime*10.0 );
 			vec4 qRotation = axisAngleToQuaternion( orientation.xyz, globalTime*40.0 + ((abs(off.x)+abs(off.z))*0.2) + explode*(1.0+h.r*5.0) );
 
 			vPosition = rotateVectorByQuaternion( vPosition, qRotation )*(size*(1.0+h.r));
 			vNormal = rotateVectorByQuaternion( normal, qRotation );
 
-
-
 			vColor += effect*1.0;
 
-			//vec3 h = texture2D( height, puv ).rgb;
-
-			//vec3 off = offset;
-
-			//off.y += h.x*250.0;
-			//float multiplier = 170.0;
-
-			//float lng = length( vec2(offset.x, offset.z) )/400.0;
-			//float extraH = 1.0+(2.0-min(2.0, lng));
-
-			//vColor *= max(1.0, extraH*0.65);
-
-			//float hh = multiplier*floor( (h.x)*100.0 )/100.0;// * max(0.1, abs(sin(globalTime*0.002 + puv.x*2.0 + puv.y*3.0)) );
-			//float ss = max(0.2, abs(sin(globalTime*0.004 - lng*0.003)) );
-			//float hh = multiplier * h.x * ss;
-			//float hh = h.x*multiplier;
-
-			/*vDestroy = 0.0;
-			if (hh < 0.1) {
-				vDestroy = 1.0;
-			}*/
-			
-			//hh *= multiplier;
-
-			//if (h.x > 0.001) {
-				//vColor = vec3(1.0,1.0-ss,1.0)*(pow(hh/multiplier, 1.0)*3.0);
-				//vColor.y = 0.5-pow(vColor.x, 2.0);
-			//}
-
-
-			//vPosition.y *= hh;
-
-			//vPosition.y = max(vPosition.y, 0.0);
-			//vPosition.y *= extraH;
-			//vPosition.y *= ss;
-
-			//vColor *= min(vPosition.y, 1.0);
-
 			vUv = uv;
-			//vUv.y *= size.z*vPosition.x*0.003;
-			//vUv.x *= size.x*vPosition.z*0.003;
-			
-			/*if (vNormal.x != 0.0) {
-				vUv.x *= size.z*vPosition.z*0.04;
-			} else {
-				vUv.x *= size.x*vPosition.x*0.04;			
-			}
-*/
-			/*if (vNormal.y == 1.0) {
-				vUv.y *= size.z*vPosition.x*0.003;
-				vUv.x *= size.x*vPosition.z*0.003;
 
-				vUv.y += offset.x;
-				vUv.x += offset.z;
-			} else {
-				vUv *= 1.0;
-				vUv.y += offset.x;
-				vUv.x += offset.z;				
-			}*/
-
-			//if (size.z > size.x) {
-			//	vUv.x *= size.z*vPosition.z;
-			//}
-
-			//vPuv = puv;
-			//vec4 mvPosition = modelViewMatrix * vec4( off + (vPosition*(4.0+effect*1.0)), 1.0 );
 			vec4 mvPosition = modelViewMatrix * vec4( off+vPosition, 1.0 );
-
-			//vViewPosition = normalize(-mvPosition.xyz);
 
 			gl_Position = projectionMatrix * mvPosition;
 
@@ -306,41 +178,12 @@
 		precision highp float;
 
 		uniform sampler2D win;
-		//uniform sampler2D norm;
 
 		varying vec2 vUv;
-		varying vec2 vPuv;
 		varying vec3 vColor;
 		varying vec3 vNormal;
 		varying float vDestroy;
 
-		varying vec3 vViewPosition;
-
-/*
-		vec3 perturbNormal2Arb( vec3 eye_pos, vec3 surf_norm ) {
-
-			vec2 normalScale = vec2(1.5,1.5);
-
-			vec3 q0 = dFdx( eye_pos.xyz );
-			vec3 q1 = dFdy( eye_pos.xyz );
-			vec2 st0 = dFdx( vUv.st );
-			vec2 st1 = dFdy( vUv.st );
-
-			vec3 S = normalize( q0 * st1.t - q1 * st0.t );
-			vec3 T = normalize( -q0 * st1.s + q1 * st0.s );
-			vec3 N = normalize( surf_norm );
-
-			vec3 mapN = texture2D( norm, vUv ).xyz * 2.0 - 1.0;
-			mapN.xy = normalScale * mapN.xy;
-			mat3 tsn = mat3( S, T, N );
-			return normalize( tsn * mapN );
-
-		}
-
-		float rand(vec2 co){
-		    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
-		}
-*/
 		void main() {
 
 			float depth = gl_FragCoord.z / gl_FragCoord.w;
@@ -348,43 +191,16 @@
 			float far = 280.0;
 			float depthcolor = 1.1 - smoothstep( near, far, depth );
 
-			/*if (vDestroy == 1.0) {
-				discard;
-			}*/	
-
-/*			vec4 normColor = texture2D(norm, vUv);
-
-			//vec3 nor = normalize(vNormal + normColor.xyz);
-
-			vec3 nor = normColor.xyz * 2.0 - 1.0;
-			
-			nor.xyz *= 3.0;
-			
-			nor = normalize( nor );
-*/
-			//vec3 nor = perturbNormal2Arb( -vViewPosition, vNormal );
-
 			vec3 l = vec3(0.5, 0.9, 0.5);
 			float d = pow( max(0.25,dot(vNormal, l)), 1.5)*1.5;
 
-
-			//gl_FragColor = texture2D(map, vUv);
-			//float lit = rand(vUv);
 			vec4 winColor = texture2D(win, vUv);
-			//if (lit < 0.9) {
-			//	winColor.xyz = vec3(0.0,0.0,0.0);
-			//}
 			if (vColor.y > 0.99) {
 				winColor.xyz += vColor.xyz*0.15;
 			}
 
-			//-winColor.x*0.6
 			gl_FragColor = vec4((vColor.xyz*winColor.xyz*d)*depthcolor,1.0);
-			//gl_FragColor.xyz -= winColor.x*0.6;
-			//gl_FragColor = vec4((vColor.xyz*d)*depthcolor,1.0);
 			
-			//gl_FragColor = vec4(winColor.xyz*4.0*d,1.0);
-
 		}
 
 	</script>
@@ -425,29 +241,12 @@
 				scene = new THREE.Scene();
 				scene.background = new THREE.Color( 0x131313 );
 
-				/*camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 1, 2000 );
-				camera.lookAt( new THREE.Vector3(0,400,0) );
-				scene.add( camera );
-				*/
-
 				camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 10, 2000 );
 				camera.position.z = 200;
-				//camera.position.x = 450;
-				
-				//camera.rotation.y = 0.7;
-
 				scene.add( camera );
 				camera.lookAt(scene.position);
 
-
-				/*for (var i = dotArray.length-1; i > 0; i--) {
-					if (Math.random() > 0.25) {
-						dotArray.splice(i, 1);
-					}
-				}*/
-
-
-				var numOfParticles = 1000000;//dotArray.length;
+				var numOfParticles = 1000000;
 
 				var orgGeometry = new THREE.Geometry();
 				var r = 10;
@@ -464,19 +263,9 @@
 
 				}
 
-				// geometry
-
-				//var mapSize = 512;
-
-				var instances = numOfParticles;//rectArray.length;//mapSize*mapSize;
-
-				console.log(instances);
+				var instances = numOfParticles;
 
 				var geometry = new THREE.InstancedBufferGeometry();
-
-				// per mesh data x,y,z,w,u,v,s,t for 4-element alignment
-				// only use x,y,z and u,v; but x, y, z, nx, ny, nz, u, v would be a good layout
-				// x,y,z, nx,ny,nz, u,v
 
 				var vertexBuffer = new THREE.InterleavedBuffer( new Float32Array( [
 					-1, -1, -1, 0, -1, 0, 1, 0,
@@ -496,59 +285,13 @@
 					0, 1, 0, 0.5, 0.5, 0.5, 0, 1
 				] ), 8 );
 
-/*
-				var vertexBuffer = new THREE.InterleavedBuffer( new Float32Array( [
-					// Front
-					-1, -1, 1, 0, 0, 1, 0, 0,
-					1, -1, 1, 0, 0, 1, 1, 0,
-					1, 1, 1, 0, 0, 1, 1, 1,
-					-1, 1, 1, 0, 0, 1, 0, 1,
-					// Back
-					-1, -1, -1, 0, 0, -1, 1, 0,
-					-1, 1, -1, 0, 0, -1, 1, 1,
-					1, 1, -1, 0, 0, -1, 0, 1,
-					1, -1, -1, 0, 0, -1, 0, 0,
-					// Left
-					-1, -1, -1, -1, 0, 0, 0, 0,
-					-1, -1, 1, -1, 0, 0, 1, 0,
-					-1, 1, 1, -1, 0, 0, 1, 1,
-					-1, 1, -1, -1, 0, 0, 0, 1,
-					// Right
-					1, -1, -1, 1, 0, 0, 1, 0,
-					1, 1, -1, 1, 0, 0, 1, 1,
-					1, 1, 1, 1, 0, 0, 0, 1,
-					1, -1, 1, 1, 0, 0, 0, 0,
-					// Top
-					-1, 1, -1, 0, 1, 0, 0, 0,
-					-1, 1, 1, 0, 1, 0, 1, 0,
-					1, 1, 1, 0, 1, 0, 1, 1,
-					1, 1, -1, 0, 1, 0, 0, 1,
-					// Bottom
-					-1, -1, -1, 0, -1, 0, 1, 0,
-					1, -1, -1, 0, -1, 0, 1, 1,
-					1, -1, 1, 0, -1, 0, 0, 1,
-					-1, -1, 1, 0, -1, 0, 0, 0
-				] ), 8 );
-*/
-				// Use vertexBuffer, starting at offset 0, 3 items in position attribute
 				var positions = new THREE.InterleavedBufferAttribute( vertexBuffer, 3, 0 );
 				geometry.addAttribute( 'position', positions );
-				// Use vertexBuffer, starting at offset 3, 3 items in normal attribute
 				var normals = new THREE.InterleavedBufferAttribute( vertexBuffer, 3, 3 );
 				geometry.addAttribute( 'normal', normals );		
-				// Use vertexBuffer, starting at offset 4, 2 items in uv attribute
 				var uvs = new THREE.InterleavedBufferAttribute( vertexBuffer, 2, 6 );
 				geometry.addAttribute( 'uv', uvs );
 
-/*				var indices = new Uint16Array( [
-					  0,  1,  2,      0,  2,  3,    // front
-					  4,  5,  6,      4,  6,  7,    // back
-					  8,  9,  10,     8,  10, 11,   // left
-					  12, 13, 14,     12, 14, 15,   // right
-					  16, 17, 18,     16, 18, 19,   // top
-				  	  20, 21, 22,     20, 22, 23    // bottom
-				] );
-*/
 				var indices = new Uint16Array( [
 					  0,  1,  2,      3,  5,  4,
 					  6,  8,  7,      9,  11,  10
@@ -556,47 +299,13 @@
 
 				geometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
 
-				// per instance data
-				instanceBuffer = new THREE.InstancedInterleavedBuffer( new Float32Array( instances * 14), 14, 1 );//.setDynamic( true );
+				instanceBuffer = new THREE.InstancedInterleavedBuffer( new Float32Array( instances * 14), 14, 1 );
+
 				var offsets = new THREE.InterleavedBufferAttribute( instanceBuffer, 3, 0 );
 
-				var size = 1;
-				//var dSize = size*4;
-
-				//var zpos = 0;
-				//var xpos = 0;
-				//var pixelUvs = [];
-
-
-				//var vector = new THREE.Vector4();
 				for ( var i = 0, ul = offsets.count; i < ul; i++ ) {
-					//var x = Math.random() * 100 - 50;
-					//var y = Math.random() * 100 - 50;
-					//var z = Math.random() * 100 - 50;
-					/*var x = (xpos*size) - ((mapSize*0.5)*size);
-					var y = 0;
-					var z = (zpos*size) - ((mapSize*0.5)*size);
 
-					pixelUvs.push({x: xpos/mapSize, y: zpos/mapSize})
-
-					++xpos;
-					if (xpos > mapSize) {
-						xpos = 0;
-						++zpos;
-					}*/
-					//var x = (rectArray[i].x+(rectArray[i].w*0.5))*size;
-					//var y = 0;
-					//var z = (rectArray[i].y+(rectArray[i].h*0.5))*size;
-
-					//var x = dotArray[i].x + Math.random()*8-4;
-					//var y = dotArray[i].y + Math.random()*8-4;
-					//var z = dotArray[i].z + Math.random()*8-4;
-
-
-					var x = 0;//Math.random()*2000-1000;
-					//var y = Math.random()*200-100;
-					//var z = Math.random()*200-100;
-
+					var x = 0;
 					var r = Math.random()*(Math.PI*2);
 					var d = Math.random()*40;
 
@@ -615,14 +324,11 @@
 					var y = orgGeometry.vertices[i].y;
 					var z = orgGeometry.vertices[i].z;
 
-					//vector.set( x, y, z, 0 ).normalize();
-					// move out at least 5 units from center in current direction
 					offsets.setXYZ( i, x, y, z );
 
 				}
 
-				geometry.addAttribute( 'offset', offsets ); // per mesh offset
-
+				geometry.addAttribute( 'offset', offsets ); 
 
 				var sizes = new THREE.InterleavedBufferAttribute( instanceBuffer, 3, 3 );
 
@@ -640,18 +346,13 @@
 
 				}
 
-				geometry.addAttribute( 'size', sizes ); // per mesh size
-
-
+				geometry.addAttribute( 'size', sizes ); 
 
 				var colors = new THREE.InterleavedBufferAttribute( instanceBuffer, 3, 6 );
 
 				var c = new THREE.Color(0xffffff);
 				for ( var i = 0, ul = colors.count; i < ul; i++ ) {
 
-					//c.setHSL(i/colors.count, 0.5, 0.5);
-					//c.setHSL(0.5+(i/colors.count)*0.15, 1.0, 0.8);
-					//c.setHSL(0.4+(i/colors.count)*0.25, 1.0, 0.8);
 					c.setHSL((orgGeometry.vertices[i].x/15*orgGeometry.vertices[i].y/15)*0.3+0.7, 1.0, 0.8-Math.random()*0.4);
 
 					if(i < 10000) {
@@ -662,24 +363,8 @@
 
 				}
 
-				geometry.addAttribute( 'color', colors ); // per mesh color
+				geometry.addAttribute( 'color', colors ); 
 
-				//
-		/*		var uvs = new THREE.InterleavedBufferAttribute( instanceBuffer, 2, 4 );
-
-				for ( var i = 0, ul = uvs.count; i < ul; i++ ) {
-
-					//vector.set( Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1 );
-					//vector.set( 1,1,1,1 );
-					
-					//vector.normalize();
-
-					uvs.setXY( i, pixelUvs[i].x, pixelUvs[i].y );
-
-				}
-
-				geometry.addAttribute( 'puv', uvs ); // per mesh orientation
-		*/		
 				var orientations = new THREE.InterleavedBufferAttribute( instanceBuffer, 4, 9 );
 				var vector = new THREE.Vector4();
 				for ( var i = 0, ul = orientations.count; i < ul; i++ ) {
@@ -691,62 +376,23 @@
 
 				}
 
-				geometry.addAttribute( 'orientation', orientations ); // per mesh orientation
-		
+				geometry.addAttribute( 'orientation', orientations ); 
 
 				var indexes = new THREE.InterleavedBufferAttribute( instanceBuffer, 1, 13 );
 
 				for ( var i = 0, ul = indexes.count; i < ul; i++ ) {
 
-					//indexes.setX( i, i/indexes.count );
 					indexes.setX( i, Math.random() );
 					
-					//indexes.setX( i, dotArray[i].y/800 );
-					//indexes.setX( i, dotArray[i].radius2 );
-					//var combine = (dotArray[i].radius2*0.5) + (i/indexes.count)*0.5;
-					//indexes.setX( i, combine );
-
 				}
 
-				geometry.addAttribute( 'id', indexes ); // per mesh color
-
-				// material
-		//		var height = THREE.ImageUtils.loadTexture( 'height_512_3.png' );
-				//var color = THREE.ImageUtils.loadTexture( 'height_512.png' );
-				//var win = THREE.ImageUtils.loadTexture( 'window.png' );
-				var textureLoader = new THREE.TextureLoader();
-				var win = textureLoader.load( "edge_tetra.jpg" );
-
-
-/*				
-				win.wrapS = THREE.RepeatWrapping;
-				win.wrapT = THREE.RepeatWrapping;
-
-				win.magFilter = THREE.NearestFilter;
-				win.minFilter = THREE.NearestFilter;
-
-				win.anisotropy = renderer.getMaxAnisotropy();
-
-
-				var norm = THREE.ImageUtils.loadTexture( '883-normal.jpg' );
-				
-				norm.wrapS = THREE.RepeatWrapping;
-				norm.wrapT = THREE.RepeatWrapping;
-
-				//norm.magFilter = THREE.NearestFilter;
-				//norm.minFilter = THREE.NearestFilter;
-
-				norm.anisotropy = renderer.getMaxAnisotropy();
-*/
+				geometry.addAttribute( 'id', indexes ); 
 
 				var material = new THREE.RawShaderMaterial( {
 
 					uniforms: {
-						//height: { type: "t", value: height },
-						//color: { type: "t", value: color },
-						win: { type: "t", value: win },
-						//norm: { type: "t", value: norm },
-						height: { type: "t", value: textureLoader.load( "height.jpg" ) },
+						win: { type: "t", value: new THREE.TextureLoader().load( "edge_tetra.jpg" ) },
+						height: { type: "t", value: new THREE.TextureLoader().load( "height.jpg" ) },
 						
 						globalTime: { type: "f", value: 0 },
 						effector: 	{ type: "f", value: 0 },
@@ -755,7 +401,6 @@
 					},
 					vertexShader: document.getElementById( 'vertexShader' ).textContent,
 					fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
-					//side: THREE.DoubleSide,
 					transparent: false,
 					wireframe: false,
 
@@ -766,45 +411,36 @@
 
 				object = new THREE.Mesh( geometry, material );
 				object.frustumCulled = false;
-				//object.position.x = -500;
 				scene.add( object );
 
+				renderer.autoClear = false;
 
-					// postprocessing
-					renderer.autoClear = false;
+				var parameters = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBFormat };
+				thresholdTarget = new THREE.WebGLRenderTarget( window.innerWidth*depthScale, window.innerHeight*depthScale, parameters );
 
+				var renderModel = new THREE.RenderPass( scene, camera );
+				effectThreshold = new THREE.ShaderPass( THREE.ThresholdShader );
+				effectThreshold.uniforms[ "tMap" ].value = thresholdTarget.texture;
+				effectThreshold.uniforms[ "threshold" ].value = 0.9;
+				var effectBloom = new THREE.BloomPass( 0.95 );
 
-					var parameters = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBFormat };
-					thresholdTarget = new THREE.WebGLRenderTarget( window.innerWidth*depthScale, window.innerHeight*depthScale, parameters );
+				var effectVignette = new THREE.ShaderPass( THREE.VignetteShader );
+				effectVignette.uniforms[ "offset" ].value = 1.0;
+				effectVignette.uniforms[ "darkness" ].value = 1.2;
 
-					// postprocessing
-					//THREE.RenderPass = function ( scene, camera, overrideMaterial, clearColor, clearAlpha ) {
-					var renderModel = new THREE.RenderPass( scene, camera );
-					effectThreshold = new THREE.ShaderPass( THREE.ThresholdShader );
-					effectThreshold.uniforms[ "tMap" ].value = thresholdTarget.texture;
-					effectThreshold.uniforms[ "threshold" ].value = 0.9;
-					var effectBarrelBlur = new THREE.ShaderPass( THREE.BarrelBlurShader );
-					var effectBloom = new THREE.BloomPass( 0.95 );
+				var effectCopy = new THREE.ShaderPass( THREE.CopyShader );
+				effectCopy.renderToScreen = true;
 
-					var effectVignette = new THREE.ShaderPass( THREE.VignetteShader );
-					effectVignette.uniforms[ "offset" ].value = 1.0;
-					effectVignette.uniforms[ "darkness" ].value = 1.2;
+				composer = new THREE.EffectComposer( renderer );
 
-					var effectCopy = new THREE.ShaderPass( THREE.CopyShader );
-					effectCopy.renderToScreen = true;
-
-					composer = new THREE.EffectComposer( renderer );
-
-					composer.addPass( renderModel );
-					composer.addPass( effectThreshold );
-					composer.addPass( effectBloom );
-					composer.addPass( effectVignette );
-					composer.addPass( effectCopy );
-
+				composer.addPass( renderModel );
+				composer.addPass( effectThreshold );
+				composer.addPass( effectBloom );
+				composer.addPass( effectVignette );
+				composer.addPass( effectCopy );
 
 				window.addEventListener( 'resize', onWindowResize, false );
 
-				//change(3000);
 				hit();
 
 			}
@@ -845,13 +481,6 @@
 				camera.updateProjectionMatrix();
 				renderer.setSize( width, height );
 
-				//fxaa.uniforms[ 'resolution' ].value.set( 1 / width, 1 / height );
-				//ssao.uniforms[ 'size' ].value.set( width, height );
-
-				//var pixelRatio = renderer.getPixelRatio();
-				//var newWidth  = Math.floor( width / pixelRatio ) || 1;
-				//var newHeight = Math.floor( height / pixelRatio ) || 1;
-				//depthTarget.setSize( newWidth, newHeight );
 				composer.setSize( width, height );
 
 			}
@@ -872,31 +501,8 @@
 				TWEEN.update();
 
 				object.material.uniforms.globalTime.value += delta*0.00005;
-				/*object.material.uniforms.explode.value += delta*0.0002;//Math.sin(time*0.0001)*0.8 + 0.4;
-
-				if (object.material.uniforms.explode.value > 1.5) {
-					object.material.uniforms.explode.value = 0.0;
-				}	
-				*/				
-/*				object.material.uniforms.effector.value += delta*0.0002;//Math.sin(time*0.0001)*0.8 + 0.4;
-
-				if (object.material.uniforms.effector.value > 1.2) {
-					object.material.uniforms.effector.value = -0.2;
-				}
-*/
 				object.rotation.y += delta*0.0002;
 
-				//camera.position.x = 300 * Math.sin(time*0.0002);
-				//camera.position.z = 300 * Math.cos(time*0.0002);
-				//camera.position.y = 500 + 100 * Math.cos(time*0.0002);
-				
-				//camera.lookAt(new THREE.Vector3(0,0+Math.sin(time*0.0005)*50,0));
-
-				//camera.up.x = Math.sin(time*0.0001);
-
-				//renderer.render( scene, camera );
-
-				
 				renderer.clear();
 				renderer.render( scene, camera, thresholdTarget, true );
 				composer.render();

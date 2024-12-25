@@ -1,5 +1,5 @@
 /**
- * @author alteredq / http://alteredqualia.com/
+ * @author Ryan The Developer / www.ryanthedeveloper.com
  */
 
 THREE.RenderPass = function ( scene, camera, overrideMaterial, clearColor, clearAlpha ) {

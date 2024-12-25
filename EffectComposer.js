@@ -1,5 +1,5 @@
 /**
- * @author alteredq / http://alteredqualia.com/
+ * @author Ryan The Developer / www.ryanthedeveloper.com
  */
 
 THREE.EffectComposer = function ( renderer, renderTarget ) {
@@ -30,19 +30,8 @@ THREE.EffectComposer = function ( renderer, renderTarget ) {
 
 	this.passes = [];
 
-	// dependencies
-
-	if ( THREE.CopyShader === undefined ) {
-
-		console.error( 'THREE.EffectComposer relies on THREE.CopyShader' );
-
-	}
-
-	if ( THREE.ShaderPass === undefined ) {
-
-		console.error( 'THREE.EffectComposer relies on THREE.ShaderPass' );
-
-	}
+	if ( THREE.CopyShader === undefined )
+		console.error( "THREE.EffectComposer relies on THREE.CopyShader" );
 
 	this.copyPass = new THREE.ShaderPass( THREE.CopyShader );
 
@@ -162,16 +151,9 @@ Object.assign( THREE.EffectComposer.prototype, {
 
 THREE.Pass = function () {
 
-	// if set to true, the pass is processed by the composer
 	this.enabled = true;
-
-	// if set to true, the pass indicates to swap read and write buffer after rendering
 	this.needsSwap = true;
-
-	// if set to true, the pass clears its buffer before rendering
 	this.clear = false;
-
-	// if set to true, the result of the pass is rendered to screen
 	this.renderToScreen = false;
 
 };
