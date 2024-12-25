@@ -1,55 +1,46 @@
 /**
- * @author Ryan The Developer / www.ryanthedeveloper.com
- * 
- * CopyShader
- * A fundamental shader that performs basic texture copying with optional opacity control.
- * Used as a building block in the post-processing pipeline.
- * 
- * Usage:
- * - Basic texture copying: Set opacity to 1.0
- * - Fade effects: Adjust opacity between 0.0 and 1.0
- * - Blend operations: Use as part of a multi-pass rendering setup
+ * @author alteredq / http://alteredqualia.com/
+ *
+ * Full-screen textured quad shader
  */
 
 THREE.CopyShader = {
-    // Uniform definitions for the shader
-    uniforms: {
-        "tDiffuse": { 
-            type: "t",      // Texture sampler
-            value: null     // Input texture to be copied
-        },
-        "opacity": { 
-            type: "f",      // Float value
-            value: 1.0      // Global opacity multiplier
-        }
-    },
 
-    // Vertex shader
-    // Handles vertex positions and UV coordinate passing
-    vertexShader: [
-        "varying vec2 vUv;",        // UV coordinates passed to fragment shader
+	uniforms: {
 
-        "void main() {",
-            // Pass UV coordinates unchanged
-            "vUv = uv;",
-            // Transform vertex position to clip space
-            "gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);",
-        "}"
-    ].join("\n"),
+		"tDiffuse": { type: "t", value: null },
+		"opacity":  { type: "f", value: 1.0 }
 
-    // Fragment shader
-    // Performs the actual texture copying with opacity control
-    fragmentShader: [
-        "uniform float opacity;",    // Global opacity value
-        "uniform sampler2D tDiffuse;", // Input texture
+	},
 
-        "varying vec2 vUv;",        // Interpolated UV coordinates
+	vertexShader: [
 
-        "void main() {",
-            // Sample the input texture
-            "vec4 texel = texture2D(tDiffuse, vUv);",
-            // Apply opacity and output final color
-            "gl_FragColor = opacity * texel;",
-        "}"
-    ].join("\n")
+		"varying vec2 vUv;",
+
+		"void main() {",
+
+			"vUv = uv;",
+			"gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );",
+
+		"}"
+
+	].join("\n"),
+
+	fragmentShader: [
+
+		"uniform float opacity;",
+
+		"uniform sampler2D tDiffuse;",
+
+		"varying vec2 vUv;",
+
+		"void main() {",
+
+			"vec4 texel = texture2D( tDiffuse, vUv );",
+			"gl_FragColor = opacity * texel;",
+
+		"}"
+
+	].join("\n")
+
 };

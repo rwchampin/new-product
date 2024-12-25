@@ -1,124 +1,101 @@
 /**
- * @author Ryan The Developer / www.ryanthedeveloper.com
- * 
- * ConvolutionShader
- * Implements a Gaussian blur effect using separable convolution.
- * This shader is a critical component in the bloom effect pipeline,
- * providing efficient blur operations for post-processing effects.
- * 
- * Features:
- * - Separable Gaussian blur (horizontal/vertical passes)
- * - Configurable kernel size for blur quality control
- * - Dynamic sigma value for blur intensity
- * - Optimized for performance using 1D convolution
- * 
- * Usage:
- * - Bloom effect blurring
- * - General purpose image blur
- * - DOF (Depth of Field) effects
- * 
- * Technical Details:
- * - Uses 1D Gaussian kernel for efficient computation
- * - Separable implementation reduces operations from O(n²) to O(2n)
- * - Kernel size and sigma control blur quality and intensity
+ * @author alteredq / http://alteredqualia.com/
+ *
+ * Convolution shader
+ * ported from o3d sample to WebGL / GLSL
+ * http://o3d.googlecode.com/svn/trunk/samples/convolution.html
  */
 
 THREE.ConvolutionShader = {
-    // Shader preprocessor definitions
-    defines: {
-        "KERNEL_SIZE_FLOAT": "25.0",  // Kernel size as float
-        "KERNEL_SIZE_INT": "25",      // Kernel size as int
-    },
 
-    // Uniform definitions for the shader
-    uniforms: {
-        "tDiffuse": { 
-            type: "t",      // Texture sampler
-            value: null     // Input texture
-        },
-        "uImageIncrement": { 
-            type: "v2",     // 2D vector
-            value: new THREE.Vector2(0.001953125, 0.0)  // Texel size for sampling
-        },
-        "cKernel": { 
-            type: "fv1",    // Float array
-            value: []       // Convolution kernel values
-        }
-    },
+	defines: {
 
-    // Vertex shader
-    // Handles sampling coordinate calculation for convolution
-    vertexShader: [
-        "uniform vec2 uImageIncrement;",  // Sampling direction and step size
+		"KERNEL_SIZE_FLOAT": "25.0",
+		"KERNEL_SIZE_INT": "25",
 
-        "varying vec2 vUv;",              // UV coordinates passed to fragment shader
+	},
 
-        "void main() {",
-            // Calculate starting UV coordinate for kernel sampling
-            // Centers the kernel on the current pixel
-            "vUv = uv - ((KERNEL_SIZE_FLOAT - 1.0) / 2.0) * uImageIncrement;",
-            
-            // Transform vertex position to clip space
-            "gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);",
-        "}"
-    ].join("\n"),
+	uniforms: {
 
-    // Fragment shader
-    // Performs the actual convolution operation
-    fragmentShader: [
-        "uniform float cKernel[KERNEL_SIZE_INT];",  // Gaussian kernel values
-        "uniform sampler2D tDiffuse;",             // Input texture
-        "uniform vec2 uImageIncrement;",           // Sampling direction and step size
+		"tDiffuse":        { type: "t", value: null },
+		"uImageIncrement": { type: "v2", value: new THREE.Vector2( 0.001953125, 0.0 ) },
+		"cKernel":         { type: "fv1", value: [] }
 
-        "varying vec2 vUv;",                       // Interpolated UV coordinates
+	},
 
-        "void main() {",
-            // Initialize sampling coordinate and accumulator
-            "vec2 imageCoord = vUv;",
-            "vec4 sum = vec4(0.0, 0.0, 0.0, 0.0);",
+	vertexShader: [
 
-            // Perform convolution
-            "for(int i = 0; i < KERNEL_SIZE_INT; i++) {",
-                // Sample texture and multiply by kernel value
-                "sum += texture2D(tDiffuse, imageCoord) * cKernel[i];",
-                // Move to next sample position
-                "imageCoord += uImageIncrement;",
-            "}",
+		"uniform vec2 uImageIncrement;",
 
-            // Output convolved color
-            "gl_FragColor = sum;",
-        "}"
-    ].join("\n"),
+		"varying vec2 vUv;",
 
-    /**
-     * Builds a Gaussian kernel for the convolution
-     * @param {number} sigma - Standard deviation of the Gaussian distribution
-     * @returns {Float32Array} - Array of kernel values
-     */
-    buildKernel: function(sigma) {
-        const kMaxKernelSize = 25;
-        const kernelSize = 2 * Math.ceil(sigma * 3.0) + 1;
+		"void main() {",
 
-        if (kernelSize > kMaxKernelSize) {
-            console.warn('sigma too large for kernel size');
-        }
+			"vUv = uv - ( ( KERNEL_SIZE_FLOAT - 1.0 ) / 2.0 ) * uImageIncrement;",
+			"gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );",
 
-        const halfWidth = (kernelSize - 1) * 0.5;
-        const values = new Float32Array(kernelSize);
-        let sum = 0.0;
-        
-        // Calculate Gaussian values
-        for (let i = 0; i < kernelSize; ++i) {
-            const x = i - halfWidth;
-            values[i] = Math.exp(-x * x / (2.0 * sigma * sigma));
-            sum += values[i];
-        }
+		"}"
 
-        // Normalize the kernel
-        for (let i = 0; i < kernelSize; ++i) {
-            values[i] /= sum;
-        }
+	].join("\n"),
 
-        return values;
-    }
+	fragmentShader: [
+
+		"uniform float cKernel[ KERNEL_SIZE_INT ];",
+
+		"uniform sampler2D tDiffuse;",
+		"uniform vec2 uImageIncrement;",
+
+		"varying vec2 vUv;",
+
+		"void main() {",
+
+			"vec2 imageCoord = vUv;",
+			"vec4 sum = vec4( 0.0, 0.0, 0.0, 0.0 );",
+
+			"for( int i = 0; i < KERNEL_SIZE_INT; i ++ ) {",
+
+				"sum += texture2D( tDiffuse, imageCoord ) * cKernel[ i ];",
+				"imageCoord += uImageIncrement;",
+
+			"}",
+
+			"gl_FragColor = sum;",
+
+		"}"
+
+
+	].join("\n"),
+
+	buildKernel: function ( sigma ) {
+
+		// We lop off the sqrt(2 * pi) * sigma term, since we're going to normalize anyway.
+
+		function gauss( x, sigma ) {
+
+			return Math.exp( - ( x * x ) / ( 2.0 * sigma * sigma ) );
+
+		}
+
+		var i, values, sum, halfWidth, kMaxKernelSize = 25, kernelSize = 2 * Math.ceil( sigma * 3.0 ) + 1;
+
+		if ( kernelSize > kMaxKernelSize ) kernelSize = kMaxKernelSize;
+		halfWidth = ( kernelSize - 1 ) * 0.5;
+
+		values = new Array( kernelSize );
+		sum = 0.0;
+		for ( i = 0; i < kernelSize; ++i ) {
+
+			values[ i ] = gauss( i - halfWidth, sigma );
+			sum += values[ i ];
+
+		}
+
+		// normalize the kernel
+
+		for ( i = 0; i < kernelSize; ++i ) values[ i ] /= sum;
+
+		return values;
+
+	}
+
 };

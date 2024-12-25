@@ -1,41 +1,33 @@
 /**
- * @author Ryan The Developer / www.ryanthedeveloper.com
+ * @author RYAN THE DEVELOPER / http://RYANTHEDEVELOPER.com/
  */
 
 THREE.ShaderPass = function ( shader, textureID ) {
+  THREE.Pass.call(this);
 
-	THREE.Pass.call( this );
+  this.textureID = textureID !== undefined ? textureID : "tDiffuse";
 
-	this.textureID = ( textureID !== undefined ) ? textureID : "tDiffuse";
+  if (shader instanceof THREE.ShaderMaterial) {
+    this.uniforms = shader.uniforms;
 
-	if ( shader instanceof THREE.ShaderMaterial ) {
+    this.material = shader;
+  } else if (shader) {
+    this.uniforms = THREE.UniformsUtils.clone(shader.uniforms);
 
-		this.uniforms = shader.uniforms;
+    this.material = new THREE.ShaderMaterial({
+      defines: shader.defines || {},
+      uniforms: this.uniforms,
+      vertexShader: shader.vertexShader,
+      fragmentShader: shader.fragmentShader,
+    });
+  }
 
-		this.material = shader;
+  this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  this.scene = new THREE.Scene();
 
-	} else if ( shader ) {
-
-		this.uniforms = THREE.UniformsUtils.clone( shader.uniforms );
-
-		this.material = new THREE.ShaderMaterial( {
-
-			defines: shader.defines || {},
-			uniforms: this.uniforms,
-			vertexShader: shader.vertexShader,
-			fragmentShader: shader.fragmentShader
-
-		} );
-
-	}
-
-	this.camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-	this.scene = new THREE.Scene();
-
-	this.quad = new THREE.Mesh( new THREE.PlaneBufferGeometry( 2, 2 ), null );
-	this.quad.frustumCulled = false; 
-	this.scene.add( this.quad );
-
+  this.quad = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), null);
+  this.quad.frustumCulled = false; // Avoid getting clipped
+  this.scene.add(this.quad);
 };
 
 THREE.ShaderPass.prototype = Object.assign( Object.create( THREE.Pass.prototype ), {

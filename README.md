@@ -36,6 +36,9 @@ A high-performance 3D particle explosion effect that creates an immersive burst 
   - Minimum screen resolution: 1024x768
 
 ## 🛠 Installation Instructions
+Run the provided index.html file in a server or use a 5 server in VS Code.  
+
+**YOU MUST RUN THIS FILE IN A SERVER OR USE A 5 SERVER IN VS CODE TO PREVENT CORS ERRORS.**
 
 1. **Setup:**
    ```html

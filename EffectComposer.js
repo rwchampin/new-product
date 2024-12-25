@@ -1,40 +1,47 @@
 /**
- * @author Ryan The Developer / www.ryanthedeveloper.com
+ * @author RYAN THE DEVELOPER / http://RYANTHEDEVELOPER.com/
  */
 
 THREE.EffectComposer = function ( renderer, renderTarget ) {
+  this.renderer = renderer;
 
-	this.renderer = renderer;
+  if (renderTarget === undefined) {
+    var parameters = {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+      stencilBuffer: false,
+    };
 
-	if ( renderTarget === undefined ) {
+    var size = renderer.getSize();
+    renderTarget = new THREE.WebGLRenderTarget(
+      size.width,
+      size.height,
+      parameters
+    );
+    renderTarget.texture.name = "EffectComposer.rt1";
+  }
 
-		var parameters = {
-			minFilter: THREE.LinearFilter,
-			magFilter: THREE.LinearFilter,
-			format: THREE.RGBAFormat,
-			stencilBuffer: false
-		};
+  this.renderTarget1 = renderTarget;
+  this.renderTarget2 = renderTarget.clone();
+  this.renderTarget2.texture.name = "EffectComposer.rt2";
 
-		var size = renderer.getSize();
-		renderTarget = new THREE.WebGLRenderTarget( size.width, size.height, parameters );
-		renderTarget.texture.name = 'EffectComposer.rt1';
+  this.writeBuffer = this.renderTarget1;
+  this.readBuffer = this.renderTarget2;
 
-	}
+  this.passes = [];
 
-	this.renderTarget1 = renderTarget;
-	this.renderTarget2 = renderTarget.clone();
-	this.renderTarget2.texture.name = 'EffectComposer.rt2';
+  // dependencies
 
-	this.writeBuffer = this.renderTarget1;
-	this.readBuffer = this.renderTarget2;
+  if (THREE.CopyShader === undefined) {
+    console.error("THREE.EffectComposer relies on THREE.CopyShader");
+  }
 
-	this.passes = [];
+  if (THREE.ShaderPass === undefined) {
+    console.error("THREE.EffectComposer relies on THREE.ShaderPass");
+  }
 
-	if ( THREE.CopyShader === undefined )
-		console.error( "THREE.EffectComposer relies on THREE.CopyShader" );
-
-	this.copyPass = new THREE.ShaderPass( THREE.CopyShader );
-
+  this.copyPass = new THREE.ShaderPass(THREE.CopyShader);
 };
 
 Object.assign( THREE.EffectComposer.prototype, {
@@ -150,12 +157,17 @@ Object.assign( THREE.EffectComposer.prototype, {
 
 
 THREE.Pass = function () {
+  // if set to true, the pass is processed by the composer
+  this.enabled = true;
 
-	this.enabled = true;
-	this.needsSwap = true;
-	this.clear = false;
-	this.renderToScreen = false;
+  // if set to true, the pass indicates to swap read and write buffer after rendering
+  this.needsSwap = true;
 
+  // if set to true, the pass clears its buffer before rendering
+  this.clear = false;
+
+  // if set to true, the result of the pass is rendered to screen
+  this.renderToScreen = false;
 };
 
 Object.assign( THREE.Pass.prototype, {

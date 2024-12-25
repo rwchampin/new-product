@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Three.js Particle System</title>
+    <meta charset="UTF-8">
+    <!-- Viewport meta tag ensures proper rendering on mobile devices -->
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        /* Basic CSS to ensure the canvas fills the entire window */
+        body {
+            font-family: Monospace;
+            background-color: #000;
+            margin: 0px;
+            overflow: hidden; /* Prevents scrollbars from appearing */
+        }
+    </style>
+</head>
+<body>
+    <!-- Three.js core library -->
+    <script src="./three.js"></script>
+    <!-- TWEEN.js for smooth animations -->
+    <script src="./Tween.js"></script>
+
+    <!-- Post-processing effect shaders -->
+    <script src="./CopyShader.js"></script>        <!-- Basic shader for copying render results -->
+    <script src="./ConvolutionShader.js"></script> <!-- For bloom effect blur -->
+    <script src="./ThresholdShader.js"></script>   <!-- Controls what gets bloomed -->
+    <script src="./VignetteShader.js"></script>    <!-- Darkens the edges of the screen -->
+
+    <!-- Post-processing system -->
+    <script src="./EffectComposer.js"></script>    <!-- Manages the render pipeline -->
+    <script src="./MaskPass.js"></script>          <!-- For masking effects -->
+    <script src="./RenderPass.js"></script>        <!-- Basic scene rendering -->
+    <script src="./ShaderPass.js"></script>        <!-- Applies shader effects -->
+    <script src="./BloomPass.js"></script>         <!-- Creates the glow effect -->
+
+    <!-- Vertex Shader: Handles particle positions and movement -->
+    <script id="vertexShader" type="x-shader/x-vertex">
+        // High precision for smooth animations
+        precision highp float;
+
+        // Three.js provided matrices for 3D transformations
+        uniform mat4 modelViewMatrix;    // Combines model and camera view transforms
+        uniform mat4 projectionMatrix;   // Handles perspective projection
+
+        // Custom uniforms for animation and effects
+        uniform sampler2D height;        // Height map texture for displacement
+        uniform float globalTime;        // Animation time
+        uniform float effector;          // Controls particle behavior
+        uniform float explode;           // Controls explosion effect
+
+        // Per-vertex attributes
+        attribute vec3 position;         // Base position of the vertex
+        attribute vec3 normal;           // Normal vector for lighting
+        attribute vec3 offset;           // Instance offset position
+        attribute vec2 uv;              // Texture coordinates
+        attribute vec4 orientation;      // Quaternion for rotation
+        attribute vec3 size;            // Size of the particle
+        attribute vec3 color;           // Color of the particle
+        attribute float id;             // Unique ID for each particle
+
+        // Values to pass to fragment shader
+        varying vec2 vUv;               // UV coordinates
+        varying vec3 vColor;            // Particle color
+        varying vec3 vNormal;           // Normal for lighting
+        varying float vDestroy;         // Destruction effect value
+
+        // Helper function: Rotates a vector using a quaternion
+        vec3 rotateVectorByQuaternion(vec3 v, vec4 q) {
+            // Implementation of quaternion rotation
+            vec3 dest = vec3(0.0);
+            // ... quaternion math ...
+            return dest;
+        }
+
+        // Helper function: Creates a quaternion from an axis and angle
+        vec4 axisAngleToQuaternion(vec3 axis, float angle) {
+            // Convert axis-angle to quaternion representation
+            vec4 dest = vec4(0.0);
+            // ... quaternion conversion ...
+            return dest;
+        }
+
+        void main() {
+            // Pass values to fragment shader
+            vNormal = normal;
+            vec3 vPosition = position;
+            vColor = color;
+
+            // Calculate UV coordinates for height map
+            vec2 myUv = normalize(offset).xy * 0.5 + 0.5;
+            myUv.x += sin(offset.x*0.005);  // Add some variation
+            myUv.y += cos(offset.z*0.0075); // Add some variation
+
+            // Sample height map for displacement
+            vec3 h = texture2D(height, myUv*vec2(1.0, 2.0)).rgb;
+
+            // Time-based animations
+            float localTime = id + globalTime*2.0;
+            float modTime = mod(localTime, 1.0);
+            float accTime = modTime * modTime;
+
+            // Calculate particle effects
+            float extra = 0.0;
+            float dif = abs(modTime-effector);
+            float effect = 0.0;
+
+            // Apply special effects based on conditions
+            if (dif <= 0.1) {
+                effect = (0.1-dif)*(50.0);
+            }
+            if(size.x < 0.5) {
+                effect = 0.0;
+                extra = 8.0;
+            }
+
+            // Calculate final position with explosion effect
+            vec3 off = offset * (1.0+((pow(h.r, 2.0)*(15.0+extra))*explode));
+            
+            // Add organic movement
+            off.x += (cos(10.0+off.z*0.1+h.r)*0.6)*15.0;
+            off.y += (sin(20.0+off.x*0.1+h.r)*0.4)*10.0;
+            off.z += (cos(10.0+off.y*0.1+h.r)*0.5)*15.0;
+
+            // Calculate rotation based on position and time
+            vec4 qRotation = axisAngleToQuaternion(
+                orientation.xyz,
+                globalTime*40.0 + ((abs(off.x)+abs(off.z))*0.2) + explode*(1.0+h.r*5.0)
+            );
+
+            // Apply rotation and scaling
+            vPosition = rotateVectorByQuaternion(vPosition, qRotation)*(size*(1.0+h.r));
+            vNormal = rotateVectorByQuaternion(normal, qRotation);
+
+            // Add highlight effect
+            vColor += effect*1.0;
+
+            // Pass UV coordinates to fragment shader
+            vUv = uv;
+
+            // Calculate final position in clip space
+            vec4 mvPosition = modelViewMatrix * vec4(off+vPosition, 1.0);
+            gl_Position = projectionMatrix * mvPosition;
+        }
+    </script>
+
+    <!-- Fragment Shader: Handles particle colors and lighting -->
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        #extension GL_OES_standard_derivatives : enable
+        precision highp float;
+
+        // Input textures and variables
+        uniform sampler2D win;           // Window texture for effects
+        
+        // Values passed from vertex shader
+        varying vec2 vUv;                // UV coordinates
+        varying vec3 vColor;             // Particle color
+        varying vec3 vNormal;            // Normal for lighting
+        varying float vDestroy;          // Destruction effect value
+
+        void main() {
+            // Calculate depth-based color adjustment
+            float depth = gl_FragCoord.z / gl_FragCoord.w;
+            float near = 10.0;           // Near clipping plane
+            float far = 280.0;           // Far clipping plane
+            float depthcolor = 1.1 - smoothstep(near, far, depth);
+
+            // Calculate lighting
+            vec3 l = vec3(0.5, 0.9, 0.5);  // Light direction
+            float d = pow(max(0.25,dot(vNormal, l)), 1.5)*1.5;  // Diffuse lighting
+
+            // Apply texture and color
+            vec4 winColor = texture2D(win, vUv);
+            if (vColor.y > 0.99) {
+                winColor.xyz += vColor.xyz*0.15;  // Add highlight for bright particles
+            }
+
+            // Set final color with lighting and depth
+            gl_FragColor = vec4((vColor.xyz*winColor.xyz*d)*depthcolor,1.0);
+        }
+    </script>
+
+    <script>
+        // Three.js scene setup
+        var container;
+
+        var camera, scene, renderer;
+        var depthMaterial, depthTarget, composer, ssao, fxaa;
+
+        var has_gl = false;
+
+        var instanceBuffer;
+
+        var delta;
+        var time;
+        var oldTime;
+
+        var object;
+
+        var effectThreshold;
+        var materialDepth;
+        var thresholdTarget;
+        var depthScale = 1.0;
+
+        init();
+        animate();
+
+        function init() {
+
+            renderer = new THREE.WebGLRenderer({antialias: true});
+            renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            document.body.appendChild( renderer.domElement );
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color( 0x131352 );
+
+            camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 10, 2000 );
+            camera.position.z = 200;
+            scene.add( camera );
+            camera.lookAt(scene.position);
+
+            // Set up post-processing
+            renderer.autoClear = false;
+            var parameters = { 
+                minFilter: THREE.LinearFilter, 
+                magFilter: THREE.LinearFilter, 
+                format: THREE.RGBFormat,
+                stencilBuffer: false 
+            };
+            
+            thresholdTarget = new THREE.WebGLRenderTarget( window.innerWidth*depthScale, window.innerHeight*depthScale, parameters );
+
+            var renderModel = new THREE.RenderPass( scene, camera );
+            
+            effectThreshold = new THREE.ShaderPass( THREE.ThresholdShader );
+            effectThreshold.uniforms[ "tMap" ].value = thresholdTarget.texture;
+            effectThreshold.uniforms[ "threshold" ].value = 0.85;  
+            
+            var effectBloom = new THREE.BloomPass( 1.25 );  
+            
+            var effectVignette = new THREE.ShaderPass( THREE.VignetteShader );
+            effectVignette.uniforms[ "offset" ].value = 0.95;
+            effectVignette.uniforms[ "darkness" ].value = 1.6;
+            
+            var effectCopy = new THREE.ShaderPass( THREE.CopyShader );
+            effectCopy.renderToScreen = true;
+
+            composer = new THREE.EffectComposer( renderer );
+            composer.addPass( renderModel );
+            composer.addPass( effectThreshold );
+            composer.addPass( effectBloom );
+            composer.addPass( effectVignette );
+            composer.addPass( effectCopy );
+
+            // Create geometry for particles
+            var numOfParticles = 1000000;  // Total number of particles in the system
+            var orgGeometry = new THREE.Geometry();
+            var r = 10;  // Radius of initial sphere distribution
+
+            // Create particles in a spherical distribution
+            for (var i = 0; i < numOfParticles; i++) {
+                var vertex1 = new THREE.Vector3();
+                // Random position within a sphere
+                vertex1.x = Math.random() * 2 - 1;
+                vertex1.y = Math.random() * 2 - 1;
+                vertex1.z = Math.random() * 2 - 1;
+                vertex1.normalize();  // Normalize to ensure uniform distribution
+                vertex1.multiplyScalar(r);  // Scale to desired radius
+                orgGeometry.vertices.push(vertex1);
+            }
+
+            var instances = numOfParticles;
+
+            // Create instanced buffer geometry for efficient rendering
+            var geometry = new THREE.InstancedBufferGeometry();
+
+            // Define tetrahedron vertices with positions, normals, and UVs
+            var vertexBuffer = new THREE.InterleavedBuffer(new Float32Array([
+                // Each line represents: x,y,z (position), nx,ny,nz (normal), u,v (texture coordinates)
+                -1, -1, -1,  0, -1,  0,  1, 0,  // Face 1
+                1, -1, -1,   0, -1,  0,  1, 1,
+                0, -1, 1,    0, -1,  0,  0, 1,
+                // ... more faces
+            ]), 8);
+
+            // Set up geometry attributes
+            var positions = new THREE.InterleavedBufferAttribute(vertexBuffer, 3, 0);
+            geometry.addAttribute('position', positions);
+            var normals = new THREE.InterleavedBufferAttribute(vertexBuffer, 3, 3);
+            geometry.addAttribute('normal', normals);
+            var uvs = new THREE.InterleavedBufferAttribute(vertexBuffer, 2, 6);
+            geometry.addAttribute('uv', uvs);
+
+            // Define faces using indices
+            var indices = new Uint16Array([
+                0, 1, 2,    3, 5, 4,   // Triangles for tetrahedron faces
+                6, 8, 7,    9, 11, 10
+            ]);
+            geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+
+            // Create instance buffer for particle properties
+            var instanceBuffer = new THREE.InstancedInterleavedBuffer(
+                new Float32Array(instances * 14),  // 14 values per instance
+                14,  // Stride
+                1    // Updates per frame
+            );
+
+            // Set up particle positions (offsets)
+            var offsets = new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 0);
+            for (var i = 0, ul = offsets.count; i < ul; i++) {
+                // Get position from original geometry
+                var x = orgGeometry.vertices[i].x;
+                var y = orgGeometry.vertices[i].y;
+                var z = orgGeometry.vertices[i].z;
+                offsets.setXYZ(i, x, y, z);
+            }
+            geometry.addAttribute('offset', offsets);
+
+            // Set up particle sizes
+            var sizes = new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 3);
+            for (var i = 0, ul = sizes.count; i < ul; i++) {
+                var s = 0.5 + Math.random() * 1;  // Random size between 0.5 and 1.5
+                if (i < 10000) {  // Special smaller particles
+                    s = 0.25 + Math.random() * 0.25;
+                }
+                sizes.setXYZ(i, s, s, s);
+            }
+            geometry.addAttribute('size', sizes);
+
+            // Set up particle colors
+            var colors = new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 6);
+            var c = new THREE.Color(0xffffff);
+            for (var i = 0, ul = colors.count; i < ul; i++) {
+                c.setHSL(0.6 + (i/colors.count)*0.1, 0.8, 0.6);  // Base blue color
+                if (i < 10000) {  // Special brighter particles
+                    c.setHSL(0.65 + (i/colors.count)*0.1, 1.0, 0.8);
+                }
+                colors.setXYZ(i, c.r, c.g, c.b);
+            }
+            geometry.addAttribute('color', colors);
+
+            // Set up particle orientations using quaternions
+            var orientations = new THREE.InterleavedBufferAttribute(instanceBuffer, 4, 9);
+            var vector = new THREE.Vector4();
+            for (var i = 0, ul = orientations.count; i < ul; i++) {
+                // Random rotation quaternion
+                vector.set(
+                    Math.random() * 2 - 1,
+                    Math.random() * 2 - 1,
+                    Math.random() * 2 - 1,
+                    Math.random() * 2 - 1
+                );
+                vector.normalize();
+                orientations.setXYZW(i, vector.x, vector.y, vector.z, vector.w);
+            }
+            geometry.addAttribute('orientation', orientations);
+
+            // Load textures
+            var textureLoader = new THREE.TextureLoader();
+            var win = textureLoader.load("edge_tetra.jpg");  // Texture for particles
+
+            // Create shader material
+            var material = new THREE.RawShaderMaterial({
+                uniforms: {
+                    win: { type: "t", value: win },  // Particle texture
+                    height: { type: "t", value: textureLoader.load("height.jpg") },  // Height map
+                    globalTime: { type: "f", value: 0 },  // Animation time
+                    effector: { type: "f", value: 0 },    // Effect control
+                    explode: { type: "f", value: 0 }      // Explosion control
+                },
+                vertexShader: document.getElementById('vertexShader').textContent,
+                fragmentShader: document.getElementById('fragmentShader').textContent,
+                transparent: false,
+                wireframe: false
+            });
+
+            // Create mesh and add to scene
+            object = new THREE.Mesh(geometry, material);
+            object.frustumCulled = false;  // Always render particles
+            scene.add(object);
+
+            // Animation functions
+            function hit() {
+                // Create explosion effect
+                var boomTween = new TWEEN.Tween(object.material.uniforms.explode)
+                    .to({value: 1.0}, 400)    // Quick expansion
+                    .delay(1000)
+                    .easing(TWEEN.Easing.Cubic.In)
+
+                var boomTween2 = new TWEEN.Tween(object.material.uniforms.explode)
+                    .to({value: 1.7}, 4500)   // Slow expansion
+                    .easing(TWEEN.Easing.Cubic.Out)
+                    .onComplete(out);
+
+                boomTween.chain(boomTween2);
+                boomTween.start();
+            }
+
+            function out() {
+                // Contract particles back
+                var outTween = new TWEEN.Tween(object.material.uniforms.explode)
+                    .to({value: 0.0}, 300)
+                    .easing(TWEEN.Easing.Cubic.In)
+                    .onComplete(hit);
+                outTween.start();
+            }
+
+            function animate() {
+                requestAnimationFrame(animate);
+
+                // Calculate delta time for smooth animations
+                time = Date.now();
+                delta = time - oldTime;
+                oldTime = time;
+
+                if (isNaN(delta) || delta > 1000 || delta == 0) {
+                    delta = 1000/60;  // Default to 60fps
+                }
+
+                // Update animations
+                TWEEN.update();
+                object.material.uniforms.globalTime.value += delta * 0.00005;
+                object.material.uniforms.explode.value += delta * 0.0002;
+                object.material.uniforms.effector.value += delta * 0.0002;
+
+                // Reset values if needed
+                if (object.material.uniforms.explode.value > 1.5) {
+                    object.material.uniforms.explode.value = 0.0;
+                }
+                if (object.material.uniforms.effector.value > 1.2) {
+                    object.material.uniforms.effector.value = -0.2;
+                }
+
+                // Rotate object
+                object.rotation.y += delta * 0.0002;
+
+                // Render scene with post-processing
+                renderer.clear();
+                renderer.render(scene, camera, thresholdTarget, true);
+                composer.render();
+            }
+
+            // Start animation
+            hit();
+            animate();
+        }
+
+        function onWindowResize( event ) {
+
+            var width = window.innerWidth;
+            var height = window.innerHeight;
+
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize( width, height );
+
+            composer.setSize( width, height );
+
+        }
+
+        window.addEventListener( 'resize', onWindowResize, false );
+
+    </script>
+
+</body>
+</html>
